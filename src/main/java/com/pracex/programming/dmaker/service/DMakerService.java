@@ -9,7 +9,7 @@ import com.pracex.programming.dmaker.entity.RetiredDeveloper;
 import com.pracex.programming.dmaker.exception.DMakerException;
 import com.pracex.programming.dmaker.repository.DeveloperRepository;
 import com.pracex.programming.dmaker.repository.RetiredDeveloperRepository;
-import com.pracex.programming.dmaker.type.DeveloperLevel;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 import static com.pracex.programming.dmaker.code.StatusCode.*;
 import static com.pracex.programming.dmaker.exception.DMakerErrorCode.*;
-import static com.pracex.programming.dmaker.type.DeveloperLevel.*;
 
 @Service
 @RequiredArgsConstructor
@@ -29,13 +28,21 @@ public class DMakerService {
     private final RetiredDeveloperRepository retiredDeveloperRepository;
 
     @Transactional
-    // ACID 특성을 반영해줌
     // 작업중 실패하게 되면 롤백 해준다.
-    public CreateDeveloper.Response createDeveloper(CreateDeveloper.Request request) {
-        // developer 생성
-        // 비지니스 로직 벨리데이트 검증
+    public CreateDeveloper.Response createDeveloper(
+            @NonNull CreateDeveloper.Request request) {
+        // 비지니스 로직 유효성 검증(벨리데이터)
         validateCreatDeveloperRequest(request);
-        Developer developer = Developer.builder()
+        // DB에 저장해줌. 영속화
+        return CreateDeveloper.Response.fromEntity(
+                        developerRepository.save(
+                                createDeveloperFromRequest(request)
+                        ));
+    }
+    private Developer createDeveloperFromRequest(
+            CreateDeveloper.Request request
+    ){
+        return Developer.builder()
                 .developerLevel(request.getDeveloperLevel())
                 .developerSkillType(request.getDeveloperSkillType())
                 .name(request.getName())
@@ -44,14 +51,14 @@ public class DMakerService {
                 .statusCode(EMPLOYED)
                 .memberId(request.getMemberId())
                 .build();
-        // DB에 저장해줌. 영속화
-        developerRepository.save(developer);
-        return CreateDeveloper.Response.fromEntity(developer);
     }
 
-    private void validateCreatDeveloperRequest(CreateDeveloper.Request request) {
-        // 비지니스 로직 벨리데이트 검증
-        validateDeveloperLevel(request.getDeveloperLevel(), request.getExperienceYears());
+    private void validateCreatDeveloperRequest(
+            @NonNull CreateDeveloper.Request request
+    ) {
+        // developer Level 유효성 검증
+        request.getDeveloperLevel()
+                .validateExperienceYears(request.getExperienceYears());
 
         // Optional<developer>
         // 생성하려는 아이디가 있는지 여부 검증
@@ -61,6 +68,7 @@ public class DMakerService {
                 }));
     }
 
+    @Transactional
     public List<DeveloperDto> getAllEmployedDevelopers() {
         // 모든 developer 정보 가져오기
         return developerRepository.findDevelopersByStatusCodeEquals(EMPLOYED)
@@ -68,46 +76,48 @@ public class DMakerService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public DeveloperDetailDto getDeveloperDetail(String memberId) {
         // 하나의 developer 정보 가져오기
-        return developerRepository.findByMemberId(memberId)
-                .map(DeveloperDetailDto::fromEntity)
-                .orElseThrow(() -> new DMakerException(NO_DEVELOPER));
+        return DeveloperDetailDto
+                .fromEntity(getDeveloperByMemberId(memberId));
     }
 
     @Transactional
     // 변경 사항들을 DB에 커밋
-    public DeveloperDetailDto editDevelopper(String memberId, EditDeveloper.Request request) {
-        // 정보 수정
-        validateDeveloperLevel(request.getDeveloperLevel(), request.getExperienceYears());
-        // 정보를 수정할때는 멤버 아이디가 있는지 여부를 확인해야한다.
-        Developer developer = developerRepository.findByMemberId(memberId).orElseThrow(
-                () -> new DMakerException(NO_DEVELOPER)
-        );
+    public DeveloperDetailDto editDevelopper(
+            String memberId, EditDeveloper.Request request
+    ) {
+        // developer Level 유효성 검증
+        request.getDeveloperLevel()
+                .validateExperienceYears(request.getExperienceYears());
 
+        // 정보를 수정할때는 멤버 아이디가 있는지 여부를 확인해야한다.
+        return DeveloperDetailDto.fromEntity(
+                // 정보 수정
+                getUpdatedDeveloperFromRequest(
+                                // 아이디 유효성 검증한 엔티티 삽입
+                        request, getDeveloperByMemberId(memberId)
+                ));
+    }
+
+    //유효성 검증된 Edit request 엔티티, 기존 developer 엔티티를 받아서 정보 수정
+    private Developer getUpdatedDeveloperFromRequest(
+            EditDeveloper.Request request, Developer developer
+    ) {
         developer.setDeveloperLevel(request.getDeveloperLevel());
         developer.setDeveloperSkillType(request.getDeveloperSkillType());
         developer.setExperienceYears(request.getExperienceYears());
-
-        return DeveloperDetailDto.fromEntity(developer);
+        return developer;
     }
 
 
-    private static void validateDeveloperLevel(DeveloperLevel developerLevel, Integer experienceYears) {
-        // developer Level별 벨리데이터 검증
-        if (developerLevel == SENIOR
-                && experienceYears < 10) {
-            throw new DMakerException(LEVEL_EXPERIENCE_YEARS_NOT_MATCHED);
-        }
-
-        if (developerLevel == JUNGNIOR
-                && (experienceYears < 4 || experienceYears > 10)) {
-            throw new DMakerException(LEVEL_EXPERIENCE_YEARS_NOT_MATCHED);
-        }
-
-        if (developerLevel == JUNIOR && experienceYears > 4) {
-            throw new DMakerException(LEVEL_EXPERIENCE_YEARS_NOT_MATCHED);
-        }
+    // 아이디가 유효성 검증
+    private Developer getDeveloperByMemberId(String memberId){
+        return developerRepository.findByMemberId(memberId)
+                .orElseThrow(
+                () -> new DMakerException(NO_DEVELOPER)
+        );
     }
 
     @Transactional
@@ -118,6 +128,7 @@ public class DMakerService {
                         () -> new DMakerException(NO_DEVELOPER)
                 );
         developer.setStatusCode(RETIRED);
+
         // save into RetiredDeveloper
         RetiredDeveloper retiredDeveloper = RetiredDeveloper.builder()
                 .memberId(memberId)

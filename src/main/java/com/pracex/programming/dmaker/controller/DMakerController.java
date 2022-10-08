@@ -2,14 +2,11 @@ package com.pracex.programming.dmaker.controller;
 
 
 import com.pracex.programming.dmaker.dto.*;
-import com.pracex.programming.dmaker.exception.DMakerException;
 import com.pracex.programming.dmaker.service.DMakerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
 
@@ -19,6 +16,7 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class DMakerController {
+    // DI - dMakerService에 의존한다 RequiredArgsConstructor 생성자 만들어줌
     private final DMakerService dMakerService;
 
 
@@ -38,6 +36,7 @@ public class DMakerController {
     }
 
     @PostMapping("/create-developers")
+    // create는 좋지 않은 맵핑이다
     public CreateDeveloper.Response createDevelopers(
            @Valid // 벨리데이션 적용해줌
            @RequestBody CreateDeveloper.Request request
@@ -50,7 +49,8 @@ public class DMakerController {
 
     @PutMapping("/developer/{memberId}")
     public DeveloperDetailDto editDevelopper(
-            @PathVariable String memberId,
+            @PathVariable final String memberId,
+            @Valid
             @RequestBody EditDeveloper.Request request
     ) {
         // GET /developers HTTP/1.1
@@ -60,7 +60,7 @@ public class DMakerController {
 
     @DeleteMapping("/developer/{memberId}")
     public DeveloperDetailDto deleteDeveloper(
-            @PathVariable String memberId
+            @PathVariable final String memberId
     ) {
 
         return dMakerService.deleteDeveloper(memberId);
