@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public enum DeveloperLever {
+public enum DeveloperLevel {
 
 
     NEW("신입 개발자"),

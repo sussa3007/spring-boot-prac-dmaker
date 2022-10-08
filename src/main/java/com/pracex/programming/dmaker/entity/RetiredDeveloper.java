@@ -1,8 +1,6 @@
 package com.pracex.programming.dmaker.entity;
 
 import com.pracex.programming.dmaker.code.StatusCode;
-import com.pracex.programming.dmaker.type.DeveloperLevel;
-import com.pracex.programming.dmaker.type.DeveloperSkillType;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -18,29 +16,21 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class Developer {
+public class RetiredDeveloper {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     protected long id;
 
-    @Enumerated(EnumType.STRING)
-    private DeveloperLevel developerLevel;
 
-    @Enumerated(EnumType.STRING)
-    private DeveloperSkillType developerSkillType;
-
-    private Integer experienceYears;
     private String memberId;
     private String name;
-    private Integer age;
-
-    @Enumerated(EnumType.STRING)
-    private StatusCode statusCode;
 
     @CreatedDate // 생성시점
     private LocalDateTime createAt;
 
     @LastModifiedDate // 수정시점
     private LocalDateTime updatedAt;
+    @Enumerated(EnumType.STRING)
+    private StatusCode statusCode;
 }

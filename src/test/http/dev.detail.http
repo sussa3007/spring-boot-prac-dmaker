@@ -1,0 +1,7 @@
+### GET detail Mini
+GET http://localhost:8080/developer/Mini
+Accept: application/json
+
+### GET detail Micky
+GET http://localhost:8080/developer/Micky
+Accept: application/json
